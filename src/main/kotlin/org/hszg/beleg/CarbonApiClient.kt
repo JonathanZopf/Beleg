@@ -1,13 +1,14 @@
 package org.hszg.beleg
 
 import org.hszg.beleg.carbon_event.FlightLeg
-import org.springframework.context.annotation.ComponentScan
+import org.springframework.core.ParameterizedTypeReference
 import org.springframework.http.HttpEntity
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpMethod
 import org.springframework.http.MediaType
 import org.springframework.stereotype.Component
 import org.springframework.web.client.RestTemplate
+import javax.print.attribute.standard.PrinterMoreInfoManufacturer
 
 @Component
 class CarbonApiClient(private val restTemplate: RestTemplate) {
@@ -31,12 +32,22 @@ class CarbonApiClient(private val restTemplate: RestTemplate) {
     /**
      * Estimate carbon emissions for a vehicle trip.
      */
-    fun estimateVehicleCarbon(distanceValue: Double, distanceUnit: String, vehicleModelId: String): EstimateResponse {
+    fun estimateVehicleCarbon(
+        distanceValue: Double,
+        distanceUnit: String,
+        vehicleManufacturer: String,
+        modelName: String,
+        year: Int
+    ): EstimateResponse {
         val payload = mapOf(
             "type" to "vehicle",
             "distance_value" to distanceValue,
             "distance_unit" to distanceUnit,
-            "vehicle_model_id" to vehicleModelId
+            "vehicle_model_id" to getVehicleModelId(
+                getCarManufacturerMakeId(vehicleManufacturer),
+                modelName,
+                year
+            )
         )
 
         return makePostRequest(payload)
@@ -80,6 +91,80 @@ class CarbonApiClient(private val restTemplate: RestTemplate) {
 
         return response.body ?: throw IllegalStateException("API returned no response")
     }
+
+    /**
+     * Fetch the vehicle make ID for a car manufaq
+     */
+    private fun getCarManufacturerMakeId(name: String): String {
+        val url = "https://www.carboninterface.com/api/v1/vehicle_makes"
+
+        val headers = HttpHeaders().apply {
+            contentType = MediaType.APPLICATION_JSON
+            set("Authorization", "Bearer $apiKey")
+        }
+
+        val requestEntity = HttpEntity<Void>(headers)
+
+        // Use a `ParameterizedTypeReference` to handle the List type
+        val response = restTemplate.exchange(
+            url,
+            HttpMethod.GET,
+            requestEntity,
+            object : ParameterizedTypeReference<List<VehicleMakesResponse>>() {}
+        )
+
+        // Map through the list to find the required make
+        return response.body?.firstOrNull { it.data.attributes.name == name }?.data?.id
+            ?: throw IllegalStateException("Vehicle make ID not found for $name")
+    }
+
+
+    /**
+     * Fetch the vehicle model ID for a specific make, model name, and year.
+     */
+    private fun getVehicleModelId(makeId: String, modelName: String, year: Int): String {
+        val url = "https://www.carboninterface.com/api/v1/vehicle_makes/$makeId/vehicle_models"
+
+        val headers = HttpHeaders().apply {
+            contentType = MediaType.APPLICATION_JSON
+            set("Authorization", "Bearer $apiKey")
+        }
+
+        val requestEntity = HttpEntity<Void>(headers)
+
+        val response = restTemplate.exchange(
+            url,
+            HttpMethod.GET,
+            requestEntity,
+            object : ParameterizedTypeReference<List<VehicleModelsResponse>>() {}
+        )
+
+        return response
+            .body?.firstOrNull { it.data.attributes.name == modelName && it.data.attributes.year == year }?.data?.id
+            ?: throw IllegalStateException("Vehicle model ID not found for $modelName")
+    }
+
+    /**
+     * Data classes for parsing vehicle makes response.
+     */
+    data class VehicleMakesResponse(val data: VehicleMake)
+
+    data class VehicleMake(
+        val id: String,
+        val attributes: VehicleMakeAttributes
+    )
+
+    data class VehicleMakeAttributes(
+        val name: String,
+        val number_of_models: Int
+    )
+
+    /**
+     * Data classes for parsing vehicle models response.
+     */
+    data class VehicleModelsResponse(val data: VehicleModel)
+    data class VehicleModel(val id: String, val attributes: VehicleModelAttributes)
+    data class VehicleModelAttributes(val name: String, val year: Int)
 }
 
 data class EstimateResponse(

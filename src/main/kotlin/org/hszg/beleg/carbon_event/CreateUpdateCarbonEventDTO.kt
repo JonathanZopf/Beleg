@@ -1,5 +1,6 @@
 package org.hszg.beleg.carbon_event
 
+import java.time.LocalDate
 import java.util.*
 
 /**
@@ -13,7 +14,7 @@ data class CreateUpdateCarbonEventDTO(
     /**
      * The date of the carbon event. Shows when the carbon emission happened.
      */
-    val date: Date,
+    val date: LocalDate,
     /**
      * The amount of carbon emitted by the event. Measured in g.
      */

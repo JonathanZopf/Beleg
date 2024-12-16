@@ -2,6 +2,7 @@ package org.hszg.beleg.carbon_event
 
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
+import java.time.LocalDate
 import java.util.*
 
 @RestController
@@ -18,8 +19,8 @@ class CarbonEventController(
 
     @GetMapping
     fun getCarbonEventsInTimeRange(
-        @RequestParam start: Date,
-        @RequestParam end: Date
+        @RequestParam start: LocalDate,
+        @RequestParam end: LocalDate
     ): ResponseEntity<List<CarbonEventEntity>> {
         val events = carbonEventService.getCarbonEventsInTimeRange(start, end)
         return ResponseEntity.ok(events)
@@ -27,8 +28,8 @@ class CarbonEventController(
 
     @GetMapping("/accumulate")
     fun accumulateCarbonEventsInTimeRange(
-        @RequestParam start: Date,
-        @RequestParam end: Date
+        @RequestParam start: LocalDate,
+        @RequestParam end: LocalDate
     ): ResponseEntity<Int> {
         val totalCarbon = carbonEventService.accumulateCarbonEventsInTimeRange(start, end)
         return ResponseEntity.ok(totalCarbon)
@@ -36,8 +37,8 @@ class CarbonEventController(
 
     @GetMapping("/accumulate/by-type")
     fun accumulateCarbonEventsInTimeRangeByType(
-        @RequestParam start: Date,
-        @RequestParam end: Date
+        @RequestParam start: LocalDate,
+        @RequestParam end: LocalDate
     ): ResponseEntity<List<Pair<CarbonEventType, Int>>> {
         val result = carbonEventService.accumulateCarbonEventsInTimeRangeByType(start, end)
         return ResponseEntity.ok(result)
@@ -61,9 +62,12 @@ class CarbonEventController(
     @PostMapping("/car")
     fun createCarCarbonEvent(
         @RequestParam distanceValue: Double,
-        @RequestParam vehicleModelId: String
+        @RequestParam vehicleManufacturer: String,
+        @RequestParam vehicleModelName: String,
+        @RequestParam vehicleYear: Int
     ): ResponseEntity<CarbonEventEntity> {
-        val event = carbonEventService.createCarCarbonEvent(distanceValue, vehicleModelId)
+        val event = carbonEventService.createCarCarbonEvent(distanceValue,
+            vehicleManufacturer, vehicleModelName, vehicleYear)
         return ResponseEntity.ok(event)
     }
 
@@ -94,8 +98,8 @@ class CarbonEventController(
 
     @DeleteMapping
     fun deleteCarbonEventsInTimeRange(
-        @RequestParam start: Date,
-        @RequestParam end: Date
+        @RequestParam start: LocalDate,
+        @RequestParam end: LocalDate
     ): ResponseEntity<Void> {
         carbonEventService.deleteCarbonEventsInTimeRange(start, end)
         return ResponseEntity.noContent().build()

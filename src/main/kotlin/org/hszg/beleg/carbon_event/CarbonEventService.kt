@@ -3,7 +3,9 @@ package org.hszg.beleg.carbon_event
 import jakarta.persistence.EntityNotFoundException
 import org.hszg.beleg.CarbonApiClient
 import org.springframework.stereotype.Service
+import java.time.LocalDate
 import java.util.*
+import javax.print.attribute.standard.PrinterMoreInfoManufacturer
 
 @Service
 class CarbonEventService (
@@ -29,7 +31,7 @@ class CarbonEventService (
      * @param end The end of the time range. Inclusive.
      * @return A list of CarbonEventEntity objects that are in the given time range.
      */
-    fun getCarbonEventsInTimeRange(start: Date, end: Date): List<CarbonEventEntity> {
+    fun getCarbonEventsInTimeRange(start: LocalDate, end: LocalDate): List<CarbonEventEntity> {
         return carbonEventRepository.findByDateIsBetween(start, end)
     }
 
@@ -40,7 +42,7 @@ class CarbonEventService (
      * @param end The end of the time range. Inclusive.
      * @return The total amount of carbon emitted in g in the given time range.
      */
-    fun accumulateCarbonEventsInTimeRange(start: Date, end: Date): Int {
+    fun accumulateCarbonEventsInTimeRange(start: LocalDate, end: LocalDate): Int {
         return carbonEventRepository.findByDateIsBetween(start, end).sumOf { it.amount }
     }
 
@@ -51,7 +53,7 @@ class CarbonEventService (
      * @param end The end of the time range. Inclusive.
      * @return A list of pairs where the first element is the CarbonEventType and the second element is the total amount of carbon emitted by that type in the given time range.
      */
-    fun accumulateCarbonEventsInTimeRangeByType(start: Date, end: Date): List<Pair<CarbonEventType, Int>> {
+    fun accumulateCarbonEventsInTimeRangeByType(start: LocalDate, end: LocalDate): List<Pair<CarbonEventType, Int>> {
         return CarbonEventType.entries.map { type ->
             Pair(type, carbonEventRepository.findByTypeAndDateIsBetween(type, start, end).sumOf { it.amount })
         }
@@ -93,7 +95,7 @@ class CarbonEventService (
         val carbonEvent = CarbonEventEntity(
             id = UUID.randomUUID(),
             type = CarbonEventType.FLIGHT,
-            date = Date(),
+            date = LocalDate.now(),
             amount = carbonAmount
         )
         return carbonEventRepository.save(carbonEvent)
@@ -104,23 +106,29 @@ class CarbonEventService (
      * The amount of carbon emitted will be calculated based on data provided by the API.
      *
      * @param distanceValue The distance the car traveled. Measured in km.
-     * @param vehicleModelId The id of the vehicle model to calculate the carbon emission for.
+     * @param vehicleManufacturer The manufacturer of the car used.
+     * @param vehicleModelName The model name of the car used.
+     * @param vehicleYear The year the car was manufactured.
      * @return The created CarbonEventEntity.
      */
     fun createCarCarbonEvent(
         distanceValue: Double,
-        vehicleModelId: String
+        vehicleManufacturer: String,
+        vehicleModelName: String,
+        vehicleYear: Int
     ): CarbonEventEntity {
         val response = carbonApiClient.estimateVehicleCarbon(
             distanceValue = distanceValue,
             distanceUnit = "km",
-            vehicleModelId = vehicleModelId
+            vehicleManufacturer = vehicleManufacturer,
+            modelName = vehicleModelName,
+            year = vehicleYear
         )
         val carbonAmount = response.carbon_g
         val carbonEvent = CarbonEventEntity(
             id = UUID.randomUUID(),
             type = CarbonEventType.CAR,
-            date = Date(),
+            date = LocalDate.now(),
             amount = carbonAmount
         )
         return carbonEventRepository.save(carbonEvent)
@@ -151,7 +159,7 @@ class CarbonEventService (
         val carbonEvent = CarbonEventEntity(
             id = UUID.randomUUID(),
             type = CarbonEventType.SHIPPING,
-            date = Date(),
+            date = LocalDate.now(),
             amount = carbonAmount
         )
         return carbonEventRepository.save(carbonEvent)
@@ -188,7 +196,7 @@ class CarbonEventService (
      * @param start The start of the time range. Inclusive.
      * @param end The end of the time range. Inclusive.
      */
-    fun deleteCarbonEventsInTimeRange(start: Date, end: Date) {
+    fun deleteCarbonEventsInTimeRange(start: LocalDate, end: LocalDate) {
         carbonEventRepository.deleteAll(carbonEventRepository.findByDateIsBetween(start, end))
     }
 }
